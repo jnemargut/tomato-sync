@@ -79,7 +79,7 @@ async function sync({ dryRun = false, onLog = () => {} } = {}) {
     if (!have) todo.push(it);
   }
 
-  // Prune: any OTHER tape folder (one-tape rule), demo excepted.
+  // Prune whole OTHER tape folders (one-tape rule), demo excepted.
   const prune = [];
   try {
     for (const d of await fsp.readdir(`${DATA_DIR}/tapes`, { withFileTypes: true })) {
@@ -87,12 +87,25 @@ async function sync({ dryRun = false, onLog = () => {} } = {}) {
     }
   } catch { /* no tapes dir yet */ }
 
+  // Within-tape cleanup: a song removed from the mixtape leaves its files behind.
+  // Keep manifest.json + every CURRENT track's files; delete the rest (removed or
+  // replaced songs). Track ORDER rides along in manifest.json, which is rewritten
+  // every sync, so a reordered tape needs no file changes.
+  const valid = new Set(["manifest.json"]);
+  for (const t of manifest.tracks || []) for (const k of ["rwlpv", "pdv", "mp3"]) if (t[k]) valid.add(t[k]);
+  const staleFiles = [];
+  try {
+    for (const fn of await fsp.readdir(dir)) {
+      if (!valid.has(fn) && /\.(rwlpv|pdv|mp3)$/.test(fn)) staleFiles.push(fn);
+    }
+  } catch { /* tape dir not created yet */ }
+
   const webData = { tapeId: id, tapeTitle: manifest.title || "" };
   if (dryRun) {
     return { ok: true, dryRun: true, tapeId: id, webData,
       added: todo.filter((t) => t.file !== "manifest.json").map((t) => t.file),
-      removed: prune.map((d) => `tapes/${d}`),
-      summary: `${manifest.title || id}: ${todo.length} files, ${prune.length} old tape(s) to clear` };
+      removed: [...prune.map((d) => `tapes/${d}`), ...staleFiles.map((fn) => `${id}/${fn}`)],
+      summary: `${manifest.title || id}: ${todo.length} files, ${prune.length} old tape(s) + ${staleFiles.length} removed song file(s) to clear` };
   }
 
   const added = [];
@@ -107,6 +120,10 @@ async function sync({ dryRun = false, onLog = () => {} } = {}) {
   const removed = [];
   for (const d of prune) {
     try { await fsp.rm(`${DATA_DIR}/tapes/${d}`, { recursive: true, force: true }); removed.push(`tapes/${d}`); onLog(`✗ cleared tape ${d}`); }
+    catch { /* best effort */ }
+  }
+  for (const fn of staleFiles) {
+    try { await fsp.rm(`${dir}/${fn}`, { force: true }); removed.push(`${id}/${fn}`); onLog(`✗ removed ${fn} (song no longer in the tape)`); }
     catch { /* best effort */ }
   }
 

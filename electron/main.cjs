@@ -5,7 +5,7 @@
 // timer without ejecting (ejecting reboots the device). You eject in the morning.
 // All sync logic is in ../src/engine.mjs (orchestrator) + ../src/adapters/*.
 
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, powerSaveBlocker, shell } = require("electron");
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, powerSaveBlocker, shell, dialog } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
@@ -107,6 +107,8 @@ function rebuildTray() {
     { type: "separator" },
     { label: "Auto-sync on connect", type: "checkbox", checked: config.autoSync, click: (mi) => { config.autoSync = mi.checked; saveConfig(config); } },
     { type: "separator" },
+    { label: "Check for updates…", click: () => checkForUpdates(true) },
+    { label: `Tomato Sync ${app.getVersion()}`, enabled: false },
     { label: "Quit", click: () => { app.isQuitting = true; app.quit(); } },
   ]);
   tray.setContextMenu(trayMenu);
@@ -114,6 +116,31 @@ function rebuildTray() {
 
 const pushState = () => { state.docked = docked; if (win && !win.isDestroyed()) win.webContents.send("state", { ...state, config, syncing, links: linksMap() }); rebuildTray(); };
 const pushLog = (line) => { state.log.push(line); if (state.log.length > 200) state.log.shift(); if (win && !win.isDestroyed()) win.webContents.send("log", line); };
+
+// ── self-update check ─────────────────────────────────────────────────────────
+// The app is unsigned, so we can't silently auto-install (mac needs a signed app
+// for that). Instead: check the latest GitHub release and, if newer, offer to open
+// the download page. `manual` shows an "up to date" / error dialog too.
+const RELEASES_API = "https://api.github.com/repos/jnemargut/tomato-sync/releases/latest";
+const RELEASES_PAGE = "https://github.com/jnemargut/tomato-sync/releases/latest";
+const verNewer = (a, b) => { const A = a.split(".").map(Number), B = b.split(".").map(Number); for (let i = 0; i < 3; i++) { if ((A[i] || 0) > (B[i] || 0)) return true; if ((A[i] || 0) < (B[i] || 0)) return false; } return false; };
+async function checkForUpdates(manual = false) {
+  try {
+    const res = await fetch(RELEASES_API, { headers: { "User-Agent": "TomatoSync", Accept: "application/vnd.github+json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rel = await res.json();
+    const latest = String(rel.tag_name || "").replace(/^v/, "");
+    const cur = app.getVersion();
+    if (latest && verNewer(latest, cur)) {
+      const r = await dialog.showMessageBox({ type: "info", message: "A new version of Tomato Sync is available", detail: `You have ${cur}. ${latest} is out. Open the download page?`, buttons: ["Download", "Later"], defaultId: 0, cancelId: 1 });
+      if (r.response === 0) shell.openExternal(rel.html_url || RELEASES_PAGE);
+    } else if (manual) {
+      dialog.showMessageBox({ type: "info", message: "You're up to date", detail: `Tomato Sync ${cur} is the latest version.`, buttons: ["OK"] });
+    }
+  } catch (e) {
+    if (manual) dialog.showMessageBox({ type: "warning", message: "Couldn't check for updates", detail: String(e.message || e), buttons: ["OK"] });
+  }
+}
 
 // ── keep the Mac awake while docked (so overnight checks run) ─────────────────
 const startBlocker = () => { if (psbId === null) psbId = powerSaveBlocker.start("prevent-app-suspension"); };
@@ -215,6 +242,7 @@ else {
     } catch (e) { pushLog("✗ failed to load sync engine: " + e.message); }
     startWatcher();
     pushState();
+    setTimeout(() => checkForUpdates(false), 4000);   // quiet check shortly after launch
   });
   app.on("before-quit", () => { if (docked && engine && engine.isMounted()) { stopBlocker(); } });
   app.on("window-all-closed", () => { /* stay alive in the tray */ });

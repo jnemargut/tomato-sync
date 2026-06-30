@@ -1,7 +1,7 @@
 {
   "name": "tomato-sync",
   "productName": "Tomato Sync",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "description": "Tomato Sync - a jontomato companion that feeds your Playdate apps (Crankcaster, Read Watch Listen Play) over USB, iTunes-to-iPod style.",
