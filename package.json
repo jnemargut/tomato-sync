@@ -1,0 +1,68 @@
+{
+  "name": "tomato-sync",
+  "productName": "Tomato Sync",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "Tomato Sync - a jontomato companion that feeds your Playdate apps (Crankcaster, Read Watch Listen Play) over USB, iTunes-to-iPod style.",
+  "author": "jontomato",
+  "main": "electron/main.cjs",
+  "bin": {
+    "tomato-sync": "src/sync.mjs"
+  },
+  "scripts": {
+    "sync": "node src/sync.mjs",
+    "start": "electron .",
+    "publish:pdx": "node scripts/publish-pdx.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.jontomato.tomatosync",
+    "productName": "Tomato Sync",
+    "copyright": "jontomato",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "src/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; script-src 'unsafe-inline';" />
+  <title>Tomato Sync</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Archivo+Black&display=swap" rel="stylesheet" />
+  <style>
+    :root { --ink:#111; --paper:#fdfdfb; --accent:#facc15; --muted:#666; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Space Mono", monospace; background: var(--paper); color: var(--ink); padding: 18px; -webkit-user-select: none; }
+    h1 { font-family: "Archivo Black", sans-serif; font-size: 20px; letter-spacing: -0.01em; display:flex; align-items:center; gap:9px; }
+    h1 .y { color: #b45309; }
+    h1 svg, h1 img { width: 24px; height: 24px; }
+    h1 img { border-radius: 5px; }
+    .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .box { border: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); background: #fff; padding: 14px; margin-top: 16px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .status { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 14px; }
+    .dot { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--ink); background: #d4d4d4; flex-shrink: 0; }
+    .dot.docked { background: #16a34a; } .dot.busy { background: var(--accent); } .dot.ready { background: #60a5fa; }
+    .dot.ok { background:#16a34a; } .dot.warn { background:#ef4444; } .dot.idle { background:#d4d4d4; }
+    .meta { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+    .btns { display: flex; gap: 8px; }
+    button { font-family: "Space Mono", monospace; font-weight: 700; border: 2px solid var(--ink); background: var(--accent); box-shadow: 3px 3px 0 var(--ink); padding: 9px 14px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    button.ghost { background: #fff; } button.sm { padding:6px 10px; font-size:11px; box-shadow:2px 2px 0 var(--ink); }
+    button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+    button:disabled { opacity: 0.45; cursor: default; box-shadow: 3px 3px 0 var(--ink); transform: none; }
+    .lab { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    select { font-family: "Space Mono", monospace; border: 2px solid var(--ink); padding: 5px 8px; font-size: 12px; background: #fff; }
+    .toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .hint { font-size: 11px; line-height: 1.6; background: var(--accent); border: 2px solid var(--ink); padding: 9px 11px; margin-top: 16px; }
+    .log { font-size: 10.5px; line-height: 1.55; background: #111; color: #d6f5d6; border: 3px solid var(--ink); padding: 10px; height: 130px; overflow: auto; white-space: pre-wrap; margin-top: 16px; }
+    .codechip { font-weight: 700; letter-spacing: 0.14em; background: var(--accent); border: 2px solid var(--ink); padding: 1px 7px; }
+    /* per-app cards (Decision 33) */
+    .apphead { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin:18px 0 0; }
+    .appcard { border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink); background:#fff; padding:11px 12px; margin-top:10px; }
+    .appcard .top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .appcard .nm { font-family:"Archivo Black", sans-serif; font-size:13px; letter-spacing:-0.01em; }
+    .appcard .nm .y { color:#b45309; }
+    .appcard .st { display:flex; align-items:center; gap:7px; font-size:11px; color:#57534e; margin-top:6px; }
+    .appcard .ed { margin-top:9px; }
+    .empty { font-size:11px; color:var(--muted); border:2px dashed #bbb; padding:12px; margin-top:10px; text-align:center; }
+  </style>
+</head>
+<body>
+  <h1>
+    <img src="data:image/png;base64,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" alt="" />
+    TOMATO<span class="y"> SYNC</span>
+  </h1>
+  <div class="sub">your Playdate apps, fed overnight, over USB</div>
+
+  <div class="box">
+    <div class="row">
+      <div class="status"><span class="dot" id="dot"></span><span id="statusText">Starting…</span></div>
+      <div class="btns">
+        <button id="syncBtn">SYNC ALL</button>
+        <button id="ejectBtn" class="ghost">EJECT</button>
+      </div>
+    </div>
+    <div class="meta" id="meta">Looking for your Playdate…</div>
+  </div>
+
+  <div class="apphead">Apps on this Playdate</div>
+  <div id="apps"></div>
+
+  <div class="hint">
+    Leave it plugged in overnight. It stays docked and feeds every jontomato app it
+    finds, then hit <b>EJECT</b> in the morning and it reboots with everything.
+    Always eject before unplugging, pulling it while docked can leave the Playdate
+    in a weird state. Note: the Playdate has to be awake to start, wake it when you plug in.
+  </div>
+
+  <div class="box">
+    <div class="row">
+      <span class="lab">Auto-sync when plugged in</span>
+      <label class="toggle"><input type="checkbox" id="autoSync" /> on connect</label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span class="lab">Check for updates every</span>
+      <select id="checkEvery">
+        <option value="2">2 minutes</option>
+        <option value="5">5 minutes</option>
+        <option value="15">15 minutes</option>
+        <option value="30">30 minutes</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const addLog = (line) => { logEl.textContent += (logEl.textContent ? "\n" : "") + line; logEl.scrollTop = logEl.scrollHeight; };
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+    const NAMES = {
+      crankcaster: 'CRANK<span class="y">CASTER</span>',
+      rwlp: 'READ&middot;WATCH&middot;LISTEN<span class="y">&middot;PLAY</span>',
+      lilmixtape: 'LIL<span class="y">MIXTAPE</span>',
+    };
+
+    function appCard(a, link, canSync) {
+      const cls = a.remembered ? "idle" : (a.ok === false ? "warn" : "ok");
+      const nm = NAMES[a.id] || esc(a.name);
+      const linkBtn = link
+        ? '<div class="ed"><button class="ghost sm" data-link="' + esc(a.id) + '">' + esc(link.label).toUpperCase() + '</button></div>' : "";
+      return '<div class="appcard">'
+        + '<div class="top"><span class="nm">' + nm + '</span>'
+        + '<button class="sm" data-sync="' + esc(a.id) + '"' + (canSync ? "" : " disabled") + '>SYNC</button></div>'
+        + '<div class="st"><span class="dot ' + cls + '"></span>' + esc(a.summary || "—")
+        + (a.lastSync ? ' &middot; ' + new Date(a.lastSync).toLocaleTimeString() : "") + '</div>'
+        + linkBtn + '</div>';
+    }
+
+    function render(s) {
+      const busy = s.syncing, docked = s.docked, connected = s.connected;
+      $("dot").className = "dot " + (busy ? "busy" : docked ? "docked" : connected ? "ready" : "");
+      $("statusText").textContent = busy ? (s.status === "ejecting" ? "Ejecting…" : "Syncing…")
+        : docked ? "Docked — keeping in sync" : connected ? "Ready to sync" : "No Playdate";
+      $("meta").textContent = busy ? "Working… (the device is a drive right now)"
+        : docked ? ("Docked" + (s.lastSync ? " · last checked " + new Date(s.lastSync).toLocaleTimeString() : "") + ". Eject when you're done.")
+        : connected ? "Playdate connected and awake."
+        : "Wake your Playdate (lock button) and plug it in.";
+      $("syncBtn").disabled = busy || !(connected || docked);
+      $("ejectBtn").disabled = busy || !docked;
+      $("autoSync").checked = !!s.config.autoSync;
+      $("checkEvery").value = String(s.config.checkEveryMin || 2);
+
+      const apps = Object.values(s.apps || {});
+      const canSync = !busy && (connected || docked);
+      const links = s.links || {};
+      $("apps").innerHTML = apps.length
+        ? apps.map((a) => appCard(a, links[a.id], canSync)).join("")
+        : '<div class="empty">No jontomato apps detected yet. Plug in your Playdate and they appear here.</div>';
+      // wire per-card buttons
+      $("apps").querySelectorAll("[data-sync]").forEach((b) => b.onclick = () => { if (canSync) window.api.syncApp(b.getAttribute("data-sync")); });
+      $("apps").querySelectorAll("[data-link]").forEach((b) => b.onclick = () => window.api.openLink(b.getAttribute("data-link")));
+    }
+
+    $("syncBtn").onclick = () => window.api.syncNow();
+    $("ejectBtn").onclick = () => window.api.ejectNow();
+    $("autoSync").onchange = (e) => window.api.setConfig({ autoSync: e.target.checked });
+    $("checkEvery").onchange = (e) => window.api.setConfig({ checkEveryMin: Number(e.target.value) });
+
+    window.api.onLog(addLog);
+    window.api.onState(render);
+    window.api.getState().then(render);
+  </script>
+</body>
+</html>

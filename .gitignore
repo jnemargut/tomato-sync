@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+npm-debug.log*
+
+.bettercompact/
+.whogitit/
+itch/Gemini_Generated_Image_*.png
+src/endpoints.local.mjs
+docs/_frame*.png
