@@ -20,6 +20,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - name: Provision endpoints (from encrypted secrets, never in the repo)
+        shell: bash
+        run: |
+          cat > src/endpoints.local.mjs <<EOF
+          export default {
+            APPS_MANIFEST: "${{ secrets.TOMATO_APPS_MANIFEST }}",
+            RWLP_HOST: "${{ secrets.TOMATO_RWLP_HOST }}",
+            LILMIXTAPE_HOST: "${{ secrets.TOMATO_LILMIXTAPE_HOST }}",
+          };
+          EOF
       - run: npm install
       - name: Build installer
         run: npm run dist
