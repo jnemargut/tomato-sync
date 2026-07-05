@@ -9,3 +9,4 @@ npm-debug.log*
 itch/Gemini_Generated_Image_*.png
 src/endpoints.local.mjs
 docs/_frame*.png
+dist-apps/
