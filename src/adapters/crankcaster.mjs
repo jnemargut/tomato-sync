@@ -131,6 +131,13 @@ async function sync({ fresh = true, dryRun = false, onLog = () => {}, config = {
 
   if (added.length || removedList.length) await fsp.writeFile(`${DATA_DIR}/crankcast_storage.json`, JSON.stringify(storage));
 
+  // Persist the freshly-fetched manifest to the file the app reads on launch
+  // (crankcast_manifest.json — same as the app's own datastore.write(m,
+  // "crankcast_manifest")). Without this the app opens showing its last cached
+  // manifest and only discovers newly-synced episodes after a slow on-device
+  // network refresh, so just-downloaded shows don't appear right away.
+  await fsp.writeFile(`${DATA_DIR}/crankcast_manifest.json`, JSON.stringify(manifest));
+
   const shows = manifest.podcasts?.length || 0;
   return { ok: true, stack: manifest.code, stackId: manifest.stackId, version: manifest.version,
     webData: { code: manifest.code, stackId: manifest.stackId },
