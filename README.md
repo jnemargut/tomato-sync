@@ -21,9 +21,15 @@ mixtape, already on the device. It even keeps the apps themselves up to date.
   today's and clears out yesterday's.
 - **[lilmixtape](https://jontomato.itch.io/lilmixtape)** is your current mixtape's
   tracks, ready to play offline.
+- **[Pour Over](https://jontomato.itch.io/pour-over)** is slow NPR listening —
+  top-of-the-hour news, Tiny Desk, and station live streams. It streams on demand, so
+  there's nothing to pre-load; Tomato Sync just keeps its app build current.
+- **[footnotes](https://jontomato.itch.io/footnotes)** is the pedometer. All step data
+  stays on your Playdate (private by design), so there's nothing to sync — Tomato Sync
+  only keeps its app build current.
 
 You install those on your Playdate from their own itch pages (links above). Tomato
-Sync just keeps them fed.
+Sync just keeps them fed and up to date.
 
 ## Download
 
@@ -36,13 +42,41 @@ Grab the latest from **[Releases](../../releases/latest)**:
 
 ### Install
 
-- **macOS:** open the `.dmg` and drag **Tomato Sync** to Applications. First launch
-  only: right-click the app, choose **Open**, then **Open** again (it's unsigned, so a
-  normal double-click gets blocked the first time). It lives in your **menu bar** as a
-  little tomato.
+- **macOS:** open the `.dmg` and drag **Tomato Sync** to Applications. It lives in your
+  **menu bar** as a little tomato. Because the app isn't signed with an Apple Developer
+  certificate, macOS blocks it the first time — see **"macOS won't open it"** just below.
 - **Windows (alpha):** run the installer. If SmartScreen warns, click **More info**,
   then **Run anyway**. It lives in your **system tray**. ⚠️ The Windows build hasn't
   been tested on real hardware yet, so treat it as experimental.
+
+### macOS won't open it (unsigned-app quarantine)
+
+Tomato Sync isn't notarized by Apple, so when you download it macOS attaches a
+"quarantine" flag. Depending on your macOS version you'll see one of these:
+
+- **"Tomato Sync is damaged and can't be opened. You should move it to the Trash."**
+- **"Tomato Sync can't be opened because Apple cannot check it for malicious software."**
+- **"…can't be opened because it is from an unidentified developer."**
+
+None of these mean the app is actually broken — it's just the quarantine flag. Clear it
+once with Terminal (paste this and press Return):
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Tomato Sync.app"
+```
+
+Then open the app normally. If you dragged it somewhere other than Applications, point
+that path at wherever the `.app` actually is. (On older macOS you can instead
+**right-click the app → Open → Open**, but the `xattr` command works on every version,
+including the "damaged" case where right-click-Open does nothing.)
+
+Still stuck? Belt-and-suspenders — clear every extended attribute, then re-sign it
+locally with an ad-hoc signature:
+
+```bash
+xattr -cr "/Applications/Tomato Sync.app"
+codesign --force --deep --sign - "/Applications/Tomato Sync.app"
+```
 
 ## How to use
 
@@ -88,7 +122,7 @@ the apps it finds. Adding a new app is one new adapter file.
 ```
 src/core.mjs            cross-platform USB transport (find port, mount/eject, fetch)
 src/updater.mjs         app auto-update (installed pdxinfo build vs a manifest)
-src/adapters/*.mjs      one per app: crankcaster, rwlp, lilmixtape
+src/adapters/*.mjs      one per app: crankcaster, rwlp, lilmixtape, footnotes, pourover
 src/engine.mjs          orchestrator: update apps, then sync each detected one
 electron/               tray + window (per-app cards, brutalist brand)
 scripts/publish-pdx.mjs package + publish an app update
@@ -97,13 +131,22 @@ scripts/publish-pdx.mjs package + publish an app update
 ## Publishing a Playdate-app update
 
 Tomato Sync checks a version manifest and swaps in a newer `.pdx` before syncing. To
-ship an app update: bump `buildNumber` in the app's `pdxinfo`, recompile, then:
+ship an app update: bump `buildNumber` in the app's `pdxinfo`, recompile, then publish.
+
+⚠️ **Seed the local manifest from R2 first.** `publish-pdx.mjs` *merges* into a local
+`dist-apps/apps.json`; if that file is missing or stale it will drop the OTHER apps'
+update entries when you upload. Always pull the live manifest before publishing:
 
 ```bash
-node scripts/publish-pdx.mjs ~/path/to/App.pdx --upload --bucket <your-bucket>
+mkdir -p dist-apps
+rclone copyto r2:readwatchlistenplay/apps.json dist-apps/apps.json   # seed from live
+node scripts/publish-pdx.mjs ~/path/to/App.pdx                       # merge this app in
+rclone copy dist-apps r2:readwatchlistenplay/ --s3-no-check-bucket   # upload zip + manifest
 ```
 
-That zips the `.pdx`, bumps the manifest, and uploads both. The manifest shape:
+(`apps.json` and the app zips live in the `readwatchlistenplay` R2 bucket.) The
+`--upload --bucket <name>` flag does the upload for you, but only for the one app; the
+seed-then-copy flow above is safest when several apps ship together. Manifest shape:
 
 ```json
 { "com.jontomato.example": { "version": "1.0", "build": 10, "pdx": "example.b10.pdx.zip" } }
