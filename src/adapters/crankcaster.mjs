@@ -44,11 +44,22 @@ async function sync({ fresh = true, dryRun = false, onLog = () => {}, config = {
   const settings  = await loadJson(`${DATA_DIR}/crankcast_settings.json`, {});
   const isDone = (pid, ep) => played[pkey(pid, ep)] || dismissed[pkey(pid, ep)];
 
+  // The Playdate's JSON encoder writes an EMPTY Lua table as [] (it can't tell a
+  // list from a map). A show with nothing downloaded therefore arrives as an
+  // array, and entries set on an array are dropped by JSON.stringify: the .mp3
+  // lands but is never tracked, so the device can't see it and the next sync
+  // deletes it as an orphan. Turn any such array back into a map.
+  for (const sid of Object.keys(storage)) if (Array.isArray(storage[sid])) storage[sid] = {};
+
   // Single source of truth: per show, the newest `keepCount` UNPLAYED episode ids
   // in the manifest's date order. Both downloads and eviction key off this set.
   const targetIds = {};
+  // A show whose feed failed server-side arrives with no episodes. That means
+  // "unknown", not "nothing wanted": leave what's on the device alone.
+  const noFeed = new Set();
   for (const show of manifest.podcasts) {
     if (removed[show.id]) continue;
+    if (!(show.episodes || []).length) { noFeed.add(show.id); onLog(`! ${show.title}: feed unavailable, leaving its episodes alone`); continue; }
     const st = settings[show.id] || {};
     let keep = st.keepCount ?? 3;
     if ((st.mode || "download") === "stream") keep = 0;
@@ -82,6 +93,7 @@ async function sync({ fresh = true, dryRun = false, onLog = () => {}, config = {
   // beyond-keep, and removed-on-web). Pinned on-demand picks are always spared.
   const prunePlan = [];
   for (const showId of Object.keys(storage)) {
+    if (noFeed.has(showId)) continue;
     const want = targetIds[showId] || new Set();
     for (const [epId, r] of Object.entries(storage[showId])) {
       if (!r || !r.path) continue;
